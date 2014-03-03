@@ -1,0 +1,69 @@
+#!/bin/bash
+
+OVERRIDE=FALSE
+DEST='.'
+IMAGES=''
+COUNT=0
+DATETIME=`date +"%Y-%m-%d-%H-%M-%S"`
+while [ "$1" != "" ]; do
+        case "${1}" in
+                -h|--help)
+			echo
+			echo "Use smush.it to optimize images."
+			echo "By Vinicius Muniz < http://viniciusmuniz.com >"
+			echo
+			echo "smush [options] file1 [file2] [file3]"
+			echo "-h, --help		Show this help"
+			echo "-o,--override		Override Image"
+			echo "-d,--dest-path		Path of destination"
+			echo
+			exit 0;
+			;;
+		-o|--override)
+			OVERRIDE=TRUE
+			shift
+			;;
+		-d|--dest-path)
+			DEST=${2}
+			shift 2
+			;;
+		*)
+			EXTENSION=`echo ${1##*.} |tr "[:upper:]" "[:lower:]"`
+			if [ $EXTENSION == 'png' ] || [ $EXTENSION == 'jpg' ] || [ $EXTENSION == 'gif' ] ; then
+				IMAGES="$IMAGES -F \"files[]=@${1}\""
+				COUNT=$[COUNT + 1]
+				FILENAME[$COUNT]=${1}
+			else
+				echo "Unexpected option '${1}'"
+			fi
+			shift
+			;;
+	esac
+done
+
+#echo "=============================="
+#echo "OVERRIDE:$OVERRIDE"
+#echo "DEST:$DEST"
+#echo "EXTENSION:$EXTENSION"
+#echo "IMAGES:$IMAGES"
+#echo "=============================="
+IMAGES="curl -s -L $IMAGES http://www.smushit.com/ysmush.it/ws.php"
+
+RETURN=$(eval $IMAGES)
+COUNT=1
+for i in $(echo $RETURN | grep -o -E "(http:){1}[^'\"]+"); do
+	FILE=$DEST"/"${FILENAME[$COUNT]}
+	COUNT=$[COUNT + 1]
+	URL=`echo "$i" |sed 's/\\\\\//\//g'`
+
+	if [ -e "$FILE" ] && [ "$OVERRIDE" == FALSE ];then
+		FILE=$FILE"_"$DATETIME
+	fi
+
+	curl "$URL" -o "$FILE"
+
+	echo
+done
+
+echo
+echo
